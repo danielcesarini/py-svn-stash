@@ -39,7 +39,7 @@ def execute_stash_pop(target_file,info):
 		stash.pop()
 		register.delete_stash(stash)
 	else:
-		print "there are not previous stashes."
+		print "there are no previous stashes."
 
 def execute_stash_list(target_file,info):
 	#obtain the list of stashes.
