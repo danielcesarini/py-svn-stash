@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 #    This file is part of svn-stash.
 
 #    svn-stash is free software: you can redistribute it and/or modify
@@ -76,7 +78,7 @@ def execute_stash_help(target_file,filename_list):
 	help_content += "\tsvn stash clear\n"
 	help_content += "\tsvn stash help\n"
 	help_content += "\n" + b + "DESCRIPTION" + end_b +"\n"
-	help_content += "\tSvn-stash permits you to hide the changes that you don't want to commit just now. this can be more useful in some circunstances.\n"
+	help_content += "\tSvn-stash permits you to hide the changes that you don't want to commit just now. this can be more useful in some circumstances.\n"
 	print help_content
 
 
