@@ -20,18 +20,18 @@ import random
 from datetime import datetime
 from svn_stash_register import svn_stash_register,svn_stash,HOME_DIR,CURRENT_DIR,SVN_STASH_DIR,COMMAND_DEFAULT,TARGET_FILE_DEFAULT
 
-def execute_stash_push(target_file,filename_list):
-	if len(filename_list)>0:
+def execute_stash_push(target_file,info):
+	if len(info['files'])>0:
 		#save the svn status into a stash
 		stash = svn_stash()
-		stash.push(target_file,filename_list)
+		stash.push(target_file,info)
 		register = svn_stash_register()
 		register.register_stash(stash)
 		register.write()
 	else:
 		print "nothing to stash in this directory."
 
-def execute_stash_pop(target_file,filename_list):
+def execute_stash_pop(target_file,info):
 	#obtain last stash pop
 	register = svn_stash_register()
 	stash = register.obtain_last_stash()
@@ -41,13 +41,13 @@ def execute_stash_pop(target_file,filename_list):
 	else:
 		print "there are not previous stashes."
 
-def execute_stash_list(target_file,filename_list):
+def execute_stash_list(target_file,info):
 	#obtain the list of stashes.
 	register = svn_stash_register()
 	for stash_id in register.stashes:
 		print stash_id
 
-def execute_stash_clear(target_file,filename_list):
+def execute_stash_clear(target_file,info):
 	#delete all stashes.
 	register = svn_stash_register()
 	marked_stashes = list(register.stashes)
@@ -56,7 +56,7 @@ def execute_stash_clear(target_file,filename_list):
 		current_stash.load(stash)
 		register.delete_stash(current_stash)
 
-def execute_stash_show(target_file,filename_list):
+def execute_stash_show(target_file,info):
 	#view all diffs of all stashes.
 	register = svn_stash_register()
 	for stash_id in register.stashes:
@@ -64,7 +64,7 @@ def execute_stash_show(target_file,filename_list):
 		current_stash.load(stash_id)
 		print current_stash
 
-def execute_stash_help(target_file,filename_list):
+def execute_stash_help(target_file,info):
 	b =  "\033[1m"
 	end_b = "\033[0m"
 	help_content = "SVN STASH\n"
@@ -78,30 +78,33 @@ def execute_stash_help(target_file,filename_list):
 	help_content += "\tsvn stash clear\n"
 	help_content += "\tsvn stash help\n"
 	help_content += "\n" + b + "DESCRIPTION" + end_b +"\n"
-	help_content += "\tSvn-stash permits you to hide the changes that you don't want to commit just now. this can be more useful in some circumstances.\n"
+	help_content += "\tSvn-stash permits you to hide the changes that you don't want to commit just now. This can be more useful in some circumstances.\n"
 	print help_content
 
 
 #Parser order and file of the command
-def execute_svn_stash(command,target_file,filename_list):
+def execute_svn_stash(command,target_file,info):
 	#print command+","+target_file
 	if command == "push":
-		execute_stash_push(target_file,filename_list)
+		execute_stash_push(target_file,info)
 	elif command == "pop":
-		execute_stash_pop(target_file,filename_list)
+		execute_stash_pop(target_file,info)
 	elif command == "list":
-		execute_stash_list(target_file,filename_list)
+		execute_stash_list(target_file,info)
 	elif command == "clear":
-		execute_stash_clear(target_file,filename_list)
+		execute_stash_clear(target_file,info)
 	elif command == "show":
-		execute_stash_show(target_file,filename_list)
+		execute_stash_show(target_file,info)
 	elif command == "help":
-		execute_stash_help(target_file,filename_list)
+		execute_stash_help(target_file,info)
 
 #obtain the svn status files
-def obtain_svn_status_files():
-	status_files = []
-	status_list = os.popen('svn st').read()
+def obtain_svn_status_files(root):
+	status_files = [] 
+	flags = {}
+	if root == TARGET_FILE_DEFAULT:
+		root = "."
+	status_list = os.popen('svn st "' + '" "'.join(root) +'"').read()
 	status_list = status_list.split("\n")
 	for line in status_list:
 		words = line.split()
@@ -109,21 +112,24 @@ def obtain_svn_status_files():
 			elements = line.split()
 			status = elements[0]
 			filename = elements[1]
-			if status == "M":
+			if os.path.isdir(filename) and filename[:-1] != '/':
+				filename = filename + "/"
+			if status == "M" or status == "A" or status == "D":
+				flags[filename] = status
 				status_files.append(filename)
-	return status_files
+	return {'files': status_files, 'flags': flags}
 
 def main(args):
 	command = COMMAND_DEFAULT
 	if len(args)>1:
 		command = args[1]
-
-	target_file = TARGET_FILE_DEFAULT
+	
+	files = ["."]
 	if len(args)>2:
-		target_file = args[2]
-
-	filename_list = obtain_svn_status_files()
-	execute_svn_stash(command,target_file,filename_list)
+		files = args[2:]
+	
+	info = obtain_svn_status_files(files)
+	execute_svn_stash(command,TARGET_FILE_DEFAULT,info)
 
 
 if __name__ == '__main__':
