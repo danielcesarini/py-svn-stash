@@ -20,7 +20,7 @@ from datetime import datetime
 HOME_DIR = os.path.expanduser("~")
 CURRENT_DIR = os.getcwd()
 SVN_STASH_DIR= HOME_DIR + "/.svn-stash"
-COMMAND_DEFAULT="push"
+COMMAND_DEFAULT="list"
 TARGET_FILE_DEFAULT="all"
 STASH_REGISTER_FILENAME = ".stashed_register"
 
@@ -110,7 +110,7 @@ class svn_stash:
 			self.files[target_file] = randkey
 			print "push " + target_file + "->" + str(randkey)
 			if os.path.isfile(target_file) or os.path.isdir(target_file):
-				result = os.popen("svn diff " + target_file + " > " + SVN_STASH_DIR + "/" + str(randkey) + ".stash.patch").read()
+				result = os.popen("svn diff --internal-diff " + target_file + " > " + SVN_STASH_DIR + "/" + str(randkey) + ".stash.patch").read()
 				result += os.popen("svn revert " + target_file).read()
 				if flags[target_file] == 'A':
 					if os.path.isfile(target_file):
@@ -141,7 +141,7 @@ class svn_stash:
 						result  = os.popen("svn add " + target_file).read()
 						# print "added file " + target_file
 					else:
-						result  = os.popen("svn patch " + target_file).read()
+						result  = os.popen("svn patch " + filepath).read()
 						print "patched file " + target_file
 						# print "pop " + target_file
 				else:
@@ -166,18 +166,21 @@ class svn_stash:
 
    	def clear(self):
 		result = ""
+		noaction = True
 		if os.path.exists(SVN_STASH_DIR):
 			for target_file in self.files:
 				randkey  = self.files[target_file]
 				filepath = SVN_STASH_DIR + "/" + str(randkey) + ".stash.patch"
 				if os.path.isfile(filepath):
-					result += os.popen("rm " + filepath).read()
+					if not noaction:
+						os.unlink(filepath)
 				else:
 					print 'randFile cannot be found.'
 
 			filepath = SVN_STASH_DIR + "/" + str(self.key)
 			if os.path.isfile(filepath):
-				result += os.popen("rm " + filepath).read()
+				if not noaction:
+					result += os.unlink(filepath)
 			else:
 				print 'registerFile cannot be found.'
 
@@ -252,6 +255,17 @@ def is_a_current_stash(stash_id):
 	stash_dir_parts = stash.root_url.split("/")
 	stash_dir_parts = stash_dir_parts[:len(current_dir_parts)]
 	stash_dir = "/".join(stash_dir_parts)
-	if ".svn" in os.listdir(CURRENT_DIR):
+
+	if is_dir_under_svn(CURRENT_DIR):
 		return stash_dir == CURRENT_DIR
 	return False
+
+
+def is_dir_under_svn(path):
+	while True:
+		if ".svn" in os.listdir(path):
+			return True
+		newpath = os.path.split(path)[0]
+		if newpath == path:
+			return False
+		path = newpath
