@@ -137,7 +137,7 @@ class svn_stash:
 						# print "added dir " + target_file
 					elif not os.path.isfile(target_file):
 						result = os.popen("touch " + target_file).read()
-						result = os.popen("patch -p0 <" + filepath).read()
+						result = os.popen("svn patch " + filepath).read()
 						result = os.popen("svn add " + target_file).read()
 						# print "added file " + target_file
 					else:
