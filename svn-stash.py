@@ -18,7 +18,7 @@
 import os,sys
 import random
 from datetime import datetime
-from svn_stash_register import svn_stash_register,svn_stash,HOME_DIR,CURRENT_DIR,SVN_STASH_DIR,COMMAND_DEFAULT,TARGET_FILE_DEFAULT
+from svn_stash_register import svn_stash_register,svn_stash,execute_and_retrieve,HOME_DIR,CURRENT_DIR,SVN_STASH_DIR,COMMAND_DEFAULT,TARGET_FILE_DEFAULT
 
 def execute_stash_push(target_file,info):
 	if len(info['files'])>0:
@@ -55,7 +55,7 @@ def execute_stash_id(stash_id):
 	#obtain stash by id
 	register = svn_stash_register()
 	stash = register.obtain_stash_by_id(stash_id)
-        print stash.key
+	print stash.key
 
 def execute_stash_list(target_file,info):
 	#obtain the list of stashes.
@@ -123,8 +123,8 @@ def obtain_svn_status_files(root):
 	flags = {}
 	if root == TARGET_FILE_DEFAULT:
 		root = "."
-	status_list = os.popen('svn st "' + '" "'.join(root) +'"').read()
-	status_list = status_list.split("\n")
+	result = execute_and_retrieve(['svn', 'status'] + root)
+	status_list = result[1].splitlines()
 	for line in status_list:
 		elements = line.split(None, 1)
 		if len(elements) > 1:
@@ -151,4 +151,4 @@ def main(args):
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+	main(sys.argv)

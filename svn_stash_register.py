@@ -13,10 +13,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with svn-stash.  If not, see <http://www.gnu.org/licenses/>.
 
-import os, sys
+import os
+import shutil
 import random
+from subprocess import Popen, PIPE
 from datetime import datetime
 
+SVN_EXECUTABLE = 'svn'
 HOME_DIR = os.path.expanduser("~")
 CURRENT_DIR = os.getcwd()
 SVN_STASH_DIR = os.path.join(HOME_DIR, ".svn-stash")
@@ -139,16 +142,18 @@ class svn_stash:
 			self.files[target_file] = randkey
 			print "push " + target_file + "->" + str(randkey)
 			if os.path.isfile(target_file) or os.path.isdir(target_file):
-				result = os.popen("svn diff --internal-diff " + target_file + " > " + os.path.join(SVN_STASH_DIR, str(randkey) + ".stash.patch")).read()
-				result += os.popen("svn revert " + target_file).read()
+				with open(os.path.join(SVN_STASH_DIR, str(randkey) + '.stash.patch'), 'wb') as patch_file:
+					result = execute_and_retrieve([SVN_EXECUTABLE, 'diff', '--internal-diff', target_file])
+					patch_file.write(result[1])
+				result = execute_and_retrieve([SVN_EXECUTABLE, 'revert', target_file])
 				if flags[target_file] == 'A':
 					if os.path.isfile(target_file):
-						result += os.popen("rm " + target_file).read()
+						os.remove(target_file)
 					if os.path.isdir(target_file):
-						result += os.popen("rmdir " + target_file).read()
+						shutil.rmtree(target_file, ignore_errors=True)
 				if flags[target_file] == 'D':
 					if os.path.isdir(target_file):
-						result += os.popen("mkdir " + target_file).read()
+						os.makedirs(target_file)
 			# print "push end: " + target_file + "->" +  ", ".join(filename_list)
 
 	def pop(self):
@@ -161,16 +166,17 @@ class svn_stash:
 				print 'pop: ' + target_file + "->" + filepath
 				if os.path.isfile(filepath):
 					if os.stat(filepath).st_size == 0 and not os.path.isdir(target_file):
-						result = os.popen("mkdir " + target_file).read()
-						result = os.popen("svn add " + target_file).read()
+						os.makedirs(target_file)
+						result = execute_and_retrieve([SVN_EXECUTABLE, 'add', target_file])
 						# print "added dir " + target_file
 					elif not os.path.isfile(target_file):
-						result = os.popen("touch " + target_file).read()
-						result = os.popen("svn patch " + filepath).read()
-						result = os.popen("svn add " + target_file).read()
+						with open(target_file, 'a'):
+							os.utime(target_file, None)  # Same as 'touch'
+						result = execute_and_retrieve([SVN_EXECUTABLE, 'patch', filepath])
+						result = execute_and_retrieve([SVN_EXECUTABLE, 'add', target_file])
 						# print "added file " + target_file
 					else:
-						result = os.popen("svn patch " + filepath).read()
+						result = execute_and_retrieve([SVN_EXECUTABLE, 'patch', filepath])
 						print "patched file " + target_file
 						# print "pop " + target_file
 				else:
@@ -285,3 +291,30 @@ def is_a_current_stash(stash_id):
 	stash_dir_parts = stash_dir_parts[:len(current_dir_parts)]
 	stash_dir = os.path.join(*stash_dir_parts)
 	return stash_dir == CURRENT_DIR
+
+
+def execute_and_retrieve(_cmd_args):
+	cmd = find_executable(_cmd_args[0], os.environ['PATH'], implicitExt='.exe')
+	process = Popen([cmd] + _cmd_args[1:], stdout=PIPE, stderr=PIPE)
+	(stdout, stderr) = process.communicate()
+	exit_code = process.wait()
+
+	return exit_code, stdout, stderr
+
+# Taken from: http://code.activestate.com/recipes/52224-find-a-file-given-a-search-path/#c4
+def find_executable(seekName, path, implicitExt=''):
+	"""Given a pathsep-delimited path string, find seekName.
+	Returns path to seekName if found, otherwise None.
+	Also allows for files with implicit extensions (eg, .exe), but
+	always returning seekName as was provided.
+	>>> findFile('ls', '/usr/bin:/bin', implicitExt='.exe')
+	'/bin/ls'
+	"""
+	if os.path.isfile(seekName) or implicitExt and os.path.isfile(seekName + implicitExt):
+		# Already absolute path.
+		return seekName
+	for p in path.split(os.pathsep):
+		candidate = os.path.join(p, seekName)
+		if os.path.isfile(candidate) or implicitExt and os.path.isfile(candidate + implicitExt):
+			return candidate
+	return None
