@@ -107,9 +107,8 @@ def obtain_svn_status_files(root):
 	status_list = os.popen('svn st "' + '" "'.join(root) +'"').read()
 	status_list = status_list.split("\n")
 	for line in status_list:
-		words = line.split()
-		if len(words) > 1:
-			elements = line.split()
+		elements = line.split(None, 1)
+		if len(elements) > 1:
 			status = elements[0]
 			filename = elements[1]
 			if os.path.isdir(filename) and filename[:-1] != '/':
